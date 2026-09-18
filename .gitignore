@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+dist-ssr/
+build/
+
+# Environment
+.env
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Uploads (ảnh sản phẩm demo — không cần push)
+backend/public/uploads/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
