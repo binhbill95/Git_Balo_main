@@ -1,0 +1,365 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================
+// ENUM
+// =========================================================
+
+enum RoleName {
+  ADMIN
+  SALES
+  WAREHOUSE
+  MANAGER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+}
+
+enum StockLogType {
+  IMPORT
+  EXPORT
+  ADJUST
+  CANCEL
+}
+
+enum ShipmentStatus {
+  PENDING_PICKUP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+enum PurchaseOrderStatus {
+  PENDING
+  APPROVED
+  RECEIVED
+  CANCELLED
+}
+
+// =========================================================
+// 1. ROLES - Phân quyền
+// =========================================================
+
+model Role {
+  id          Int        @id @default(autoincrement())
+  name        RoleName   @unique @default(ADMIN)
+  description String?
+  users       User[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("roles")
+}
+
+// =========================================================
+// 2. USERS - Tài khoản đăng nhập
+// =========================================================
+
+model User {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique
+  email        String     @unique
+  password     String
+  fullName     String
+  roleId       Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  isActive     Boolean    @default(true)
+  refreshToken String?
+  orders       Order[]
+  stockLogs    StockLog[]
+  purchaseOrders PurchaseOrder[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([roleId])
+  @@index([email])
+  @@map("users")
+}
+
+// =========================================================
+// 3. CATEGORIES - Danh mục sản phẩm
+// =========================================================
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+  @@map("categories")
+}
+
+// =========================================================
+// 4. PRODUCTS - Sản phẩm
+// =========================================================
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String
+  sku         String    @unique
+  barcode     String?   @unique
+  slug        String    @unique
+  description String?
+  price       Decimal   @db.Decimal(12, 2)
+  costPrice   Decimal?  @db.Decimal(12, 2)
+  stock       Int       @default(0)
+  imageUrl    String?
+  color       String?
+  isActive    Boolean   @default(true)
+  categoryId  Int
+  category    Category  @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  stockLogs   StockLog[]
+  purchaseOrderItems PurchaseOrderItem[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([categoryId])
+  @@index([name])
+  @@index([isActive])
+  @@map("products")
+}
+
+// =========================================================
+// 5. CUSTOMERS - Khách hàng
+// =========================================================
+
+model Customer {
+  id         Int    @id @default(autoincrement())
+  fullName   String
+  phone      String @unique
+  email      String?
+  address    String?
+  gender     String? // Male / Female / Other
+  isActive   Boolean @default(true)
+  orders     Order[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([phone])
+  @@index([fullName])
+  @@map("customers")
+}
+
+// =========================================================
+// 6. ORDERS - Đơn hàng
+// =========================================================
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  orderCode     String      @unique
+  customerId    Int
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id])
+  status        OrderStatus    @default(PENDING)
+  paymentMethod PaymentMethod  @default(CASH)
+  totalAmount   Decimal        @default(0) @db.Decimal(12, 2)
+  note          String?
+  orderItems    OrderItem[]
+  shipments     Shipment[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([customerId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+// =========================================================
+// 7. ORDER_ITEMS - Chi tiết đơn hàng
+// =========================================================
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// =========================================================
+// 8. INVENTORY_LOGS - Lịch sử tồn kho
+// =========================================================
+
+model StockLog {
+  id        Int         @id @default(autoincrement())
+  productId Int
+  product   Product     @relation(fields: [productId], references: [id])
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id])
+  type      StockLogType
+  quantity  Int         // số nguyên dương; log riêng type EXPORT để trừ
+  before    Int
+  after     Int
+  note      String?
+  createdAt DateTime    @default(now())
+
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("inventory_logs")
+}
+
+// =========================================================
+// 9. DELIVERY_PARTNERS - Đối tác giao hàng
+// =========================================================
+
+model DeliveryPartner {
+  id        Int        @id @default(autoincrement())
+  code      String     @unique
+  name      String     @unique
+  phone     String?
+  website   String?
+  isActive  Boolean    @default(true)
+  shipments Shipment[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([isActive])
+  @@map("delivery_partners")
+}
+
+// =========================================================
+// 10. SHIPMENTS - Vận đơn giao hàng
+// =========================================================
+
+model Shipment {
+  id              Int            @id @default(autoincrement())
+  shipmentCode    String         @unique
+  orderId         Int
+  order           Order          @relation(fields: [orderId], references: [id])
+  partnerId       Int
+  partner         DeliveryPartner @relation(fields: [partnerId], references: [id])
+  trackingCode    String?
+  recipientName   String
+  recipientPhone  String
+  recipientAddress String
+  shippingFee     Decimal        @default(0) @db.Decimal(12, 2)
+  status          ShipmentStatus @default(PENDING_PICKUP)
+  note            String?
+  deliveredAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([orderId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("shipments")
+}
+
+// =========================================================
+// 11. SUPPLIERS - Nhà cung cấp
+// =========================================================
+
+model Supplier {
+  id             Int             @id @default(autoincrement())
+  code           String          @unique
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  taxCode        String?
+  note           String?
+  isActive       Boolean         @default(true)
+  purchaseOrders PurchaseOrder[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@map("suppliers")
+}
+
+// =========================================================
+// 12. PURCHASE_ORDERS - Đơn nhập hàng
+// =========================================================
+
+model PurchaseOrder {
+  id          Int                @id @default(autoincrement())
+  poCode      String             @unique
+  supplierId  Int
+  supplier    Supplier           @relation(fields: [supplierId], references: [id])
+  userId      Int
+  user        User               @relation(fields: [userId], references: [id])
+  status      PurchaseOrderStatus @default(PENDING)
+  totalAmount Decimal            @default(0) @db.Decimal(12, 2)
+  receivedAt  DateTime?
+  note        String?
+  items       PurchaseOrderItem[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([supplierId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("purchase_orders")
+}
+
+// =========================================================
+// 13. PURCHASE_ORDER_ITEMS - Chi tiết đơn nhập hàng
+// =========================================================
+
+model PurchaseOrderItem {
+  id              Int           @id @default(autoincrement())
+  purchaseOrderId Int
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       Int
+  product         Product       @relation(fields: [productId], references: [id])
+  quantity        Int
+  unitPrice       Decimal       @db.Decimal(12, 2)
+  createdAt       DateTime      @default(now())
+
+  @@unique([purchaseOrderId, productId])
+  @@index([productId])
+  @@map("purchase_order_items")
+}
+
+// =========================================================
+// 14. APP_SETTINGS - Cài đặt hệ thống (key-value)
+// =========================================================
+
+model AppSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String?
+  isSecret  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isSecret])
+  @@map("app_settings")
+}
