@@ -21,6 +21,7 @@
 | Mật khẩu | BCrypt |
 | Upload ảnh | Multer |
 | Xuất báo cáo | xlsx (Excel) + In |
+| API Documentation | Swagger (swagger-ui-express) — tự sinh từ JSDoc, truy cập `/api-docs` |
 
 ## Tính năng
 
