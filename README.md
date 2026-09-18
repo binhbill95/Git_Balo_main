@@ -84,6 +84,13 @@ docker compose start db    # bật lại
 
 > Lưu ý: cổng **5433** (mặc định config), user/password lấy trong `docker-compose.yml`
 > và `backend/.env` — thay đổi phải sửa **cả 2 chỗ** cho khớp.
+>
+> 📌**Giảng viên lưu ý:** dự án cấu hình sẵn **Postgres cổng 5433** vì máy sinh viên dùng
+> sẵn cổng 5432. Nếu máy giảng viên dùng cổng mặc định **5432**, hãy đổi sang 5432 ở
+> **cả 2 chỗ**:
+> 1. `docker-compose.yml`: dòng `ports` đổi từ `"5433:5432"` → `"5432:5432"`.
+> 2. `backend/.env`: `DATABASE_URL` đổi host port `5433` → `5432`. Sau đó
+>    `docker compose up -d db` rồi `npm run prisma:migrate` + `npm run seed`.
 
 ---
 
