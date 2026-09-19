@@ -189,6 +189,14 @@ npm run build             # build production — frontend (backend: không build
 
 ## Cập nhật gần đây
 
+### Bảo mật & phiên đăng nhập (2026-09-19)
+
+- **Rate limit** (backend, `express-rate-limit`):
+  - `/auth/login`: tối đa **10 lần thất bại/15 phút** (đăng nhập thành công không tính) — chống brute-force.
+  - `/auth/refresh` + `/auth/change-password`: tối đa **30 lần/15 phút** — chống thử token.
+- **Refresh flow tự động trên frontend** (`frontend/src/services/api.js`): khi API trả **401**, client tự gọi `/auth/refresh` bằng refresh token → cấp access token mới → **retry lại request bị lỗi** (phiên kéo dài mượt, không bị logout giữa chừng khi demo). Các request 401 đồng thời dùng chung 1 lượt refresh; chỉ đỏi về `/login` khi refresh token hết hạn.
+- **Lệnh cần chạy sau khi lấy code mới**: `npm install` (backend — có thêm `express-rate-limit`).
+
 ### Cài đặt hệ thống — Liên hệ hỗ trợ (2026-09-18)
 
 - **DB**: bảng `app_settings` (key-value) — migration `add_app_settings`.
