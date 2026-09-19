@@ -41,12 +41,12 @@ import { renderBarcode, generateEan13, ean13FromId } from '../utils/barcode'
 const BarcodeCell = ({ value }) => {
   const ref = useRef(null)
   useEffect(() => {
-    if (value) renderBarcode(ref.current, value, { width: 1.1, height: 28, fontSize: 8, textMargin: 0 })
+    if (value) renderBarcode(ref.current, value, { width: 0.9, height: 15, fontSize: 6, textMargin: 0 })
   }, [value])
   return value ? (
     <div style={{ display: 'inline-block' }}>
-      <div ref={ref} style={{ maxWidth: 110 }} />
-      <span style={{ display: 'block', textAlign: 'center', fontSize: 10, color: '#8c8c8c' }}>{value}</span>
+      <div ref={ref} style={{ maxWidth: 80 }} />
+      <span style={{ display: 'block', textAlign: 'center', fontSize: 8, color: '#8c8c8c' }}>{value}</span>
     </div>
   ) : (
     <Typography.Text type="secondary">—</Typography.Text>
@@ -389,10 +389,16 @@ export default function Products() {
         title: 'Mã vạch',
         dataIndex: 'barcode',
         key: 'barcode',
-        width: 150,
+        width: 110,
         render: (v) => <BarcodeCell value={v} />,
       },
-      { title: 'Tên sản phẩm', dataIndex: 'name', key: 'name' },
+      {
+        title: 'Tên sản phẩm',
+        dataIndex: 'name',
+        key: 'name',
+        width: 260,
+        ellipsis: { showTitle: true },
+      },
       {
         title: 'Danh mục',
         dataIndex: ['category', 'name'],
@@ -538,7 +544,7 @@ export default function Products() {
           showTotal: (t) => `Tổng ${t} sản phẩm`,
           onChange: (page, limit) => setPagination((p) => ({ ...p, page, limit })),
         }}
-        scroll={{ x: 900 }}
+        scroll={{ x: 1380 }}
       />
 
       <Modal
