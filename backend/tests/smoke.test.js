@@ -271,7 +271,7 @@ test("suppliers: readable by all roles, write by ADMIN/WAREHOUSE only", async ()
   const whUnique = `NCC-X-${Date.now().toString().slice(-6)}`;
   const whCreate = await api("POST", "/suppliers", {
     token: whToken,
-    body: { code: whUnique, name: "Nhà cung cấp WAREHOUSE" },
+    body: { code: whUnique, name: `Nhà cung cấp WAREHOUSE ${Date.now().toString().slice(-6)}` },
   });
   assert.equal(whCreate.status, 201, "WAREHOUSE can create supplier");
   const whDelete = await api("DELETE", `/suppliers/${whCreate.json.data.id}`, { token: whToken });
@@ -320,7 +320,7 @@ test("purchase order flow: create -> approve -> receive imports stock + cost pri
 
   const supplier = await api("POST", "/suppliers", {
     token: admin,
-    body: { code: `NCC-FLOW-${Date.now().toString().slice(-6)}`, name: "NCC flow test" },
+    body: { code: `NCC-FLOW-${Date.now().toString().slice(-6)}`, name: `NCC flow test ${Date.now().toString().slice(-6)}` },
   });
   assert.equal(supplier.status, 201, JSON.stringify(supplier.json));
 
@@ -386,4 +386,15 @@ test("purchase order flow: create -> approve -> receive imports stock + cost pri
     body: { status: "CANCELLED" },
   });
   assert.equal(cancelAfterReceive.status, 400, "cannot cancel a received PO");
+});
+
+test("login rate limit: too many failed attempts returns 429", async () => {
+  let lastStatus = 0;
+  for (let i = 0; i < 12; i++) {
+    const { status } = await api("POST", "/auth/login", {
+      body: { username: "admin", password: "sai-mat-khau" },
+    });
+    lastStatus = status;
+  }
+  assert.equal(lastStatus, 429, "last failed attempt should be rate-limited with 429");
 });
