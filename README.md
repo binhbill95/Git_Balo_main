@@ -80,6 +80,15 @@ balo-tui-store/
 - Cổng host: **5433** (tránh xung đột với Postgres mặc định 5432)
 - Volume dữ liệu `balo_pg_data` (dữ liệu không mất khi tắt container)
 
+Tạo file cấu hình môi trường ở **thư mục gốc dự án** (một lần đầu tiên):
+
+```bash
+# Windows (PowerShell):  copy .env.example .env
+# macOS/Linux:           cp .env.example .env
+```
+
+> Mật khẩu `POSTGRES_PASSWORD` trong `.env` phải **khớp** với password trong `DATABASE_URL` của `backend/.env` (xem BƯỚC 2). Giá trị mặc định `change_me_db_password` dùng được ngay cho môi trường demo local.
+
 Mở terminal tại **thư mục gốc dự án** (`balo-tui-store/`) và chạy:
 
 ```bash
@@ -99,7 +108,7 @@ docker compose stop db     # tắt (dữ liệu giữ nguyên)
 docker compose start db    # bật lại
 ```
 
-> Lưu ý: cổng **5433** (mặc định config), user/password lấy trong `docker-compose.yml`
+> Lưu ý: cổng **5433** (mặc định config), user/password đọc từ `.env` (thư mục gốc)
 > và `backend/.env` — thay đổi phải sửa **cả 2 chỗ** cho khớp.
 >
 > 📌**Giảng viên lưu ý:** dự án cấu hình sẵn **Postgres cổng 5433** vì máy sinh viên dùng

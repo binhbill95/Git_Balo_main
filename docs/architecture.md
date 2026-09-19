@@ -96,7 +96,7 @@ Response JSON { success, message, data, meta }
 
 | Biến | Giá trị | Mô tả |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://balo_admin:balo_secret_123@localhost:5433/balo_store` | Chuỗi kết nối PostgreSQL |
+| `DATABASE_URL` | `postgresql://balo_admin:CHANGE_ME_DB_PASSWORD@localhost:5433/balo_store` | Chuỗi kết nối PostgreSQL (lấy từ `backend/.env`, mật khẩu khớp với `POSTGRES_PASSWORD` trong `.env` thư mục gốc) |
 | `PORT` | `3000` | Cổng API |
 | `JWT_ACCESS_SECRET` | (random) | Khóa ký access token |
 | `JWT_REFRESH_SECRET` | (random) | Khóa ký refresh token |
