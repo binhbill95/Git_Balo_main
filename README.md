@@ -21,7 +21,7 @@
 | Mật khẩu | BCrypt |
 | Upload ảnh | Multer |
 | Xuất báo cáo | xlsx (Excel) + In |
-| API Documentation | Swagger (swagger-ui-express) — tự sinh từ JSDoc, truy cập `/api-docs` |
+| API Documentation | Swagger (swagger-ui-express) — tự sinh từ JSDoc, truy cập `/api/docs` |
 
 ## Tính năng
 
@@ -32,6 +32,22 @@
 - **Nhà cung cấp + Đơn nhập hàng**: quản lý NCC, đặt đơn → duyệt → nhập kho (tự cập nhật tồn kho, giá vốn, lịch sử nhập)
 - Báo cáo: bán hàng, cuối ngày, tồn kho, khách hàng (xem + in + xuất Excel)
 - AI mô phỏng: chat, gợi ý, phân tích, dự báo
+
+## Kiến trúc hệ thống
+
+Ứng dụng chạy theo mô hình **3 tầng**: Client giao tiếp với **API server** qua HTTP/JSON (xác thực JWT), API server xử lý mọi nghiệp vụ và truy cập **Database** thông qua Prisma ORM. Client **không** kết nối trực tiếp vào CSDL.
+
+```
++--------------------+   HTTP/JSON (JWT)   +------------------+   Prisma ORM   +-----------------+
+|                    | -------------------> |                  | --------------> |                 |
+|  ỨNG DỤNG CLIENT   |                      |    API SERVER    |                 | DATABASE SERVER |
+|  React + Vite      | <------------------- |  Node.js/Express | <-------------- | PostgreSQL 16  |
++--------------------+   JSON response      +------------------+                 +-----------------+
+```
+
+- **Client** (`frontend/`): React + Vite + Ant Design. Gọi API qua axios (`/api/v1/*`), không thao tác trực tiếp Database.
+- **API Server** (`backend/`): Express chia tầng **Controller → Service → Repository → Prisma**; xác thực JWT (Access + Refresh), phân quyền RBAC theo vai trò, validate dữ liệu đầu vào bằng Zod.
+- **Database**: PostgreSQL 16 chạy trong Docker (cổng 5433), cấu trúc bảng quản lý bằng Prisma migrations + seed dữ liệu mẫu.
 
 ## Cấu trúc dự án
 
@@ -107,7 +123,7 @@ npm run dev                # chạy server (nodemon, cổng 3000)
 ```
 
 Backend chạy tại **http://localhost:3000** — thấy log `... listening on 3000` là OK.
-- Tài liệu API (Swagger): `http://localhost:3000/api-docs`
+- Tài liệu API (Swagger): `http://localhost:3000/api/docs`
 - Kiểm tra sức khỏe: `http://localhost:3000/api/v1/system/health`
 
 Cấu hình nằm trong `backend/.env` (Port 3000, DATABASE_URL, JWT secret, CORS `CLIENT_URL`).
