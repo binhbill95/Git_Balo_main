@@ -34,6 +34,8 @@ import productService from '../services/product.service'
 import categoryService from '../services/category.service'
 import customerService from '../services/customer.service'
 import orderService from '../services/order.service'
+import shipmentService from '../services/shipment.service'
+import deliveryPartnerService from '../services/deliveryPartner.service'
 import { useAuth } from '../hooks/useAuth'
 import { formatCurrency, formatDateTime } from '../utils/format'
 import { QRCodeSVG } from 'qrcode.react'
@@ -116,6 +118,10 @@ export default function POS() {
   const [scanCode, setScanCode] = useState('')
   const [customerForm] = Form.useForm()
   const scanRef = useRef(null)
+  const [deliveryOrder, setDeliveryOrder] = useState(false)
+  const [deliveryPartners, setDeliveryPartners] = useState([])
+  const [lastShipment, setLastShipment] = useState(null)
+  const [deliveryForm] = Form.useForm()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -136,6 +142,10 @@ export default function POS() {
   useEffect(() => {
     load()
     categoryService.all().then((d) => setCategories(d.data.filter((c) => c.isActive))).catch(() => {})
+    deliveryPartnerService
+      .listAll({ isActive: true })
+      .then((d) => setDeliveryPartners(d.data))
+      .catch(() => {})
   }, [load])
 
   const filteredProducts = useMemo(() => {
@@ -233,15 +243,41 @@ export default function POS() {
       message.warning('Vui lòng chọn khách hàng hoặc chọn "Khách lẻ"')
       return
     }
+    let deliveryValues = null
+    if (deliveryOrder) {
+      try {
+        deliveryValues = await deliveryForm.validateFields()
+      } catch {
+        return
+      }
+    }
     setPaying(true)
     try {
       const res = await orderService.create({
         customerId: walkIn ? undefined : customerId,
         paymentMethod,
+        note: deliveryOrder ? deliveryValues.note || 'Giao hàng' : undefined,
         items: cart.map((c) => ({ productId: c.product.id, quantity: c.quantity })),
       })
-      message.success(`Tạo đơn hàng thành công: ${res.data?.orderCode || ''}`)
+      let shipment = null
+      if (deliveryOrder && deliveryValues) {
+        shipment = await shipmentService.create({
+          orderId: res.data.id,
+          partnerId: deliveryValues.partnerId,
+          recipientName: deliveryValues.recipientName,
+          recipientPhone: deliveryValues.recipientPhone,
+          recipientAddress: deliveryValues.recipientAddress,
+          shippingFee: deliveryValues.shippingFee ?? 0,
+          note: deliveryValues.note,
+        })
+      }
+      message.success(
+        `Tạo đơn hàng thành công: ${res.data?.orderCode || ''}${
+          shipment ? ` — vận đơn ${shipment.data?.shipmentCode || ''}` : ''
+        }`
+      )
       setLastOrder(res.data)
+      setLastShipment(shipment ? shipment.data : null)
       setLastPayment({
         method: paymentMethod,
         received: paymentMethod === 'CASH' && received !== undefined && received !== null && received !== '' ? Number(received) : null,
@@ -253,6 +289,8 @@ export default function POS() {
       setWalkIn(false)
       setPaymentMethod('CASH')
       setReceived(undefined)
+      setDeliveryOrder(false)
+      deliveryForm.resetFields()
       load()
     } catch (err) {
       message.error(err.message)
@@ -562,6 +600,81 @@ export default function POS() {
                 </Space>
               )}
 
+              <Space
+                style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }}
+              >
+                <Typography.Text strong>Giao hàng:</Typography.Text>
+                <Checkbox
+                  checked={deliveryOrder}
+                  onChange={(e) => {
+                    setDeliveryOrder(e.target.checked)
+                    if (!e.target.checked) deliveryForm.resetFields()
+                  }}
+                >
+                  Khách cần giao
+                </Checkbox>
+              </Space>
+              {deliveryOrder && (
+                <Card size="small" style={{ marginBottom: 12, background: '#fafafa' }}>
+                  <Form form={deliveryForm} layout="vertical" initialValues={{ shippingFee: 0 }}>
+                    <Form.Item
+                      name="recipientName"
+                      label="Người nhận"
+                      style={{ marginBottom: 8 }}
+                      rules={[{ required: true, message: 'Nhập người nhận' }]}
+                    >
+                      <Input placeholder="Tên người nhận" />
+                    </Form.Item>
+                    <Form.Item
+                      name="recipientPhone"
+                      label="SĐT người nhận"
+                      style={{ marginBottom: 8 }}
+                      rules={[{ required: true, message: 'Nhập SĐT người nhận' }]}
+                    >
+                      <Input placeholder="SĐT người nhận" />
+                    </Form.Item>
+                    <Form.Item
+                      name="recipientAddress"
+                      label="Địa chỉ giao"
+                      style={{ marginBottom: 8 }}
+                      rules={[{ required: true, message: 'Nhập địa chỉ giao' }]}
+                    >
+                      <Input placeholder="Địa chỉ giao hàng" />
+                    </Form.Item>
+                    <Form.Item
+                      name="partnerId"
+                      label="Đối tác giao hàng"
+                      style={{ marginBottom: 8 }}
+                      rules={[{ required: true, message: 'Chọn đối tác giao hàng' }]}
+                    >
+                      <Select
+                        placeholder="Chọn đối tác"
+                        options={deliveryPartners.map((p) => ({
+                          value: p.id,
+                          label: `${p.name} (${p.code})`,
+                        }))}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="shippingFee"
+                      label="Phí vận chuyển (₫)"
+                      style={{ marginBottom: 8 }}
+                    >
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        min={0}
+                        placeholder="0"
+                        formatter={(v) => (v === undefined || v === null || v === '' ? '' : Number(v).toLocaleString('vi-VN'))}
+                        parser={(v) => Number(String(v).replace(/\./g, ''))}
+                      />
+                    </Form.Item>
+                    <Form.Item name="note" label="Ghi chú giao hàng" style={{ marginBottom: 0 }}>
+                      <Input placeholder="Ghi chú (nếu có)" />
+                    </Form.Item>
+                  </Form>
+                </Card>
+              )}
+
               <Button
                 type="primary"
                 block
@@ -647,6 +760,25 @@ export default function POS() {
                 <Typography.Text>
                   <b>TT:</b> {PAYMENT_LABEL[lastPayment?.method] || '—'}
                 </Typography.Text>
+                {lastShipment && (
+                  <>
+                    <Typography.Text>
+                      <b>Giao:</b> {lastShipment.recipientName}
+                    </Typography.Text>
+                    <Typography.Text>
+                      <b>SĐT:</b> {lastShipment.recipientPhone}
+                    </Typography.Text>
+                    <Typography.Text>
+                      <b>ĐC:</b> {lastShipment.recipientAddress}
+                    </Typography.Text>
+                    <Typography.Text>
+                      <b>Đối tác:</b> {lastShipment.partner?.name || '—'}
+                    </Typography.Text>
+                    <Typography.Text>
+                      <b>Vận đơn:</b> {lastShipment.shipmentCode}
+                    </Typography.Text>
+                  </>
+                )}
               </Space>
             </div>
             <Divider style={{ margin: '8px 0' }} />
